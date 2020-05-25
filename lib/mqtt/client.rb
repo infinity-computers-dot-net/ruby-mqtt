@@ -87,9 +87,9 @@ module MQTT
     #    # do stuff here
     #  end
     #
-    def self.connect(*args, nonblocking: false, &block)
-      client = MQTT::Client.new(*args)
-      client.connect(&block, nonblocking: nonblocking)
+    def self.connect *args, nonblocking: false, &block
+      client = MQTT::Client.new *args
+      client.connect nonblocking: nonblocking, &block
       client
     end
 
