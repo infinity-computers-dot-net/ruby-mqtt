@@ -87,9 +87,9 @@ module MQTT
     #    # do stuff here
     #  end
     #
-    def self.connect(*args, &block)
+    def self.connect(*args, nonblocking: false, &block)
       client = MQTT::Client.new(*args)
-      client.connect(&block)
+      client.connect(&block, nonblocking: nonblocking)
       client
     end
 
@@ -215,7 +215,7 @@ module MQTT
 
     # Connect to the MQTT server
     # If a block is given, then yield to that block and then disconnect again.
-    def connect(clientid = nil)
+    def connect(clientid = nil, nonblocking: false)
       @client_id = clientid unless clientid.nil?
 
       if @client_id.nil? || @client_id.empty?
@@ -229,8 +229,18 @@ module MQTT
 
       unless connected?
         # Create network socket
-        tcp_socket = TCPSocket.new(@host, @port)
-
+        if nonblocking
+          addr = Socket.pack_sockaddr_in @port, @host
+          tcp_socket = Socket.new(:AF_INET, :SOCK_STREAM, 0)
+          begin
+            tcp_socket.connect_nonblock(addr)
+          rescue Errno::EINPROGRESS
+            IO.select(nil, [tcp_socket], nil, 0.5) or raise Timeout::Error
+          end
+        else
+          tcp_socket = TCPSocket.new(@host, @port)
+        end
+        
         if @ssl
           # Set the protocol version
           ssl_context.ssl_version = @ssl if @ssl.is_a?(Symbol)
